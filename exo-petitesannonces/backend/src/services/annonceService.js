@@ -4,11 +4,13 @@ const db = require("../utils/db_pool");
  * Récupère toutes les annonces.
  */
 const getAllAnnonces = async () => {
-  const annonces = (await db.request("SELECT * FROM t_annonce", []))[0];
-  return annonces.map((a) => ({
+  const [rows] = await db.request("SELECT * FROM t_annonce", []);
+  return rows.map((a) => ({
     id: a.pk_annonce,
     titre: a.titre,
     description: a.description,
+    prix: a.prix,
+    vendue: !!a.vendue,
   }));
 };
 
@@ -16,28 +18,30 @@ const getAllAnnonces = async () => {
  * Récupère une annonce par ID.
  */
 const getAnnonceById = async (id) => {
-  const annonce = (
-    await db.request("SELECT * FROM t_annonce WHERE pk_annonce = ?", [id])
-  )[0];
-  if (annonce.length === 0) return null;
+  const [rows] = await db.request(
+    "SELECT * FROM t_annonce WHERE pk_annonce = ?",
+    [id]
+  );
+  if (rows.length === 0) return null;
+  const a = rows[0];
   return {
-    id: annonce[0].pk_annonce,
-    titre: annonce[0].titre,
-    description: annonce[0].description,
+    id: a.pk_annonce,
+    titre: a.titre,
+    description: a.description,
+    prix: a.prix,
+    vendue: !!a.vendue,
   };
 };
 
 /**
  * Crée une nouvelle annonce.
  */
-const createAnnonce = async (titre, description) => {
-  const result = (
-    await db.request(
-      "INSERT INTO t_annonce (titre, description) VALUES (?, ?)",
-      [titre, description]
-    )
-  )[0];
-  return { id: result.insertId, titre, description };
+const createAnnonce = async (titre, description, prix = null) => {
+  const [result] = await db.request(
+    "INSERT INTO t_annonce (titre, description, prix) VALUES (?, ?, ?)",
+    [titre, description, prix]
+  );
+  return { id: result.insertId, titre, description, prix, vendue: false };
 };
 
 /**
@@ -50,12 +54,12 @@ const deleteAnnonce = async (id) => {
 /**
  * Met à jour une annonce par ID.
  */
-const updateAnnonce = async (id, titre, description) => {
+const updateAnnonce = async (id, titre, description, prix, vendue) => {
   await db.request(
-    "UPDATE t_annonce SET titre = ?, description = ? WHERE pk_annonce = ?",
-    [titre, description, id]
+    "UPDATE t_annonce SET titre = ?, description = ?, prix = ?, vendue = ? WHERE pk_annonce = ?",
+    [titre, description, prix, vendue ? 1 : 0, id]
   );
-  return { id, titre, description };
+  return { id, titre, description, prix, vendue: !!vendue };
 };
 
 module.exports = {
